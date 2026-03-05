@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: resume-optimizer-backend
+    env: node
+    rootDir: resume-backend
+    buildCommand: npm install && npm run build
+    startCommand: node dist/app.js
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: PORT
+        value: 3001
+    healthCheckPath: /api/health
