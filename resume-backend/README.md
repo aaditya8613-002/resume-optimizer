@@ -1,6 +1,6 @@
-# resume-backend
+# Resume Optimizer Backend
 
-Node.js + Express + TypeScript API powering the Resume Copilot app. Uses Anthropic Claude for all AI operations.
+Node.js + Express + TypeScript API powering the Resume Optimizer app. Uses Google Gemini 2.0 Flash for all AI operations.
 
 ## Setup
 
@@ -13,7 +13,7 @@ npm install
 # 2. Create your env file
 copy .env.example .env
 # Open .env and fill in:
-#   ANTHROPIC_API_KEY=sk-ant-...
+#   GEMINI_API_KEY=AIzaSyB...
 #   PORT=3001
 #   ALLOWED_ORIGINS=http://localhost:5173
 
@@ -35,7 +35,7 @@ VITE_API_URL=http://localhost:3001
 
 Then in your fetch calls:
 ```js
-const res = await fetch(`${import.meta.env.VITE_API_URL}/api/resume/generate`, { ... });
+const res = await fetch(`${import.meta.env.VITE_API_URL}/api/resume/architect`, { ... });
 ```
 
 ---
@@ -48,114 +48,49 @@ All file uploads use `multipart/form-data`. All JSON endpoints use `Content-Type
 
 ```bash
 curl http://localhost:3001/api/health
-# { "status": "ok", "uptime": 12.5, "timestamp": "...", "claude": "reachable" }
+# { "status": "ok", "uptime": 12.5, "timestamp": "...", "gemini": "reachable" }
 ```
 
 ---
 
-### Resume
+### Resume Architect
 
-#### POST /api/resume/generate
-Generate a full resume from structured input.
+#### POST /api/resume/architect
+Generate a full resume from structured input or parsed text.
 ```bash
-curl -X POST http://localhost:3001/api/resume/generate \
+curl -X POST http://localhost:3001/api/resume/architect \
   -H "Content-Type: application/json" \
   -d '{
-    "personalInfo": { "name": "Aaditya Gupta", "email": "a@example.com" },
-    "targetJob": "Full Stack Engineer",
-    "background": "2 years building React + Node apps at a fintech startup",
-    "skills": ["TypeScript", "React", "Node.js"],
-    "tone": "professional"
+    "userData": "Name: John Doe\nEmail: john@example.com\nExperience: 2 years building React apps...",
+    "templateChoice": "modern_two_column"
   }'
 ```
 
-#### POST /api/resume/optimize
-Optimize an uploaded resume for a job description.
+#### POST /api/resume/match
+Optimize a resume for a specific job description to beat ATS.
 ```bash
-curl -X POST http://localhost:3001/api/resume/optimize \
-  -F "file=@resume.pdf" \
-  -F "jobDescription=We are looking for a senior Node.js engineer..."
-```
-
-#### POST /api/resume/cover-letter
-Generate a cover letter from text context (no file upload).
-```bash
-curl -X POST http://localhost:3001/api/resume/cover-letter \
+curl -X POST http://localhost:3001/api/resume/match \
   -H "Content-Type: application/json" \
   -d '{
-    "resumeContext": "3 years experience in React and TypeScript at XYZ Corp...",
-    "jobDescription": "Looking for a frontend engineer...",
-    "companyName": "Stripe",
-    "tone": "professional"
+    "resumeData": "React Developer with 3 years experience...",
+    "jobDescription": "We are looking for a senior Node.js engineer...",
+    "templateChoice": "minimal_ats"
   }'
 ```
 
 ---
 
-### ATS
-
-#### POST /api/ats/score
-Score a resume upload with a detailed breakdown.
-```bash
-curl -X POST http://localhost:3001/api/ats/score \
-  -F "resume=@resume.pdf" \
-  -F "jobDescription=Optional JD text here"
-```
-
-#### POST /api/ats/analyze
-Quick ATS analysis against a required JD.
-```bash
-curl -X POST http://localhost:3001/api/ats/analyze \
-  -F "file=@resume.pdf" \
-  -F "jobDescription=We need a Python backend engineer with 3+ years..."
-```
-
-#### POST /api/ats/tailor
-Rewrite resume to match a JD, with a change log.
-```bash
-curl -X POST http://localhost:3001/api/ats/tailor \
-  -F "resume=@resume.pdf" \
-  -F "jobDescription=Senior backend role requiring Go and Kubernetes..." \
-  -F "tone=executive"
-```
-
----
-
-### Cover Letter (file-upload variant)
+### Cover Letter
 
 #### POST /api/cover-letter/generate
-Generate a cover letter from an uploaded resume file.
+Generate a tailored cover letter from user context.
 ```bash
 curl -X POST http://localhost:3001/api/cover-letter/generate \
-  -F "file=@resume.pdf" \
-  -F "jobDescription=Looking for a product engineer..." \
-  -F "companyName=Notion" \
-  -F "tone=conversational"
-```
-
----
-
-### Improve
-
-#### POST /api/improve/suggestions
-Deep improvement suggestions with before/after bullets.
-```bash
-curl -X POST http://localhost:3001/api/improve/suggestions \
-  -F "resume=@resume.pdf" \
-  -F "jobDescription=Optional JD" \
-  -F "focusAreas=bullets,skills"
-```
-
-#### POST /api/improve/rewrite-section
-Rewrite a single section with 2 alternatives.
-```bash
-curl -X POST http://localhost:3001/api/improve/rewrite-section \
   -H "Content-Type: application/json" \
   -d '{
-    "section": "summary",
-    "content": "Experienced developer with skills in many technologies.",
-    "tone": "professional",
-    "context": "Applying for a senior role at a Series B startup"
+    "userData": "3 years experience in React and TypeScript...",
+    "jobDescription": "Looking for a frontend engineer...",
+    "companyName": "Stripe"
   }'
 ```
 
@@ -165,9 +100,7 @@ curl -X POST http://localhost:3001/api/improve/rewrite-section \
 
 | Limiter | Routes | Max |
 |---------|--------|-----|
-| `generateLimiter` | /resume/generate, /resume/optimize, /resume/cover-letter, /cover-letter/generate, /improve/suggestions | 10/min |
-| `atsLimiter` | /ats/analyze, /ats/score | 15/min |
-| `tailorLimiter` | /ats/tailor, /improve/rewrite-section | 8/min |
+| `generateLimiter` | /resume/architect, /resume/match, /cover-letter/generate | 10/min |
 | `defaultLimiter` | All routes (catch-all) | 30/min |
 
 ## Error Response Shape
@@ -177,4 +110,4 @@ All errors return:
 { "success": false, "error": "Human-readable message", "code": "ERROR_CODE" }
 ```
 
-Codes: `CLAUDE_ERROR` · `PARSE_ERROR` · `FILE_ERROR` · `VALIDATION_ERROR`
+Codes: `GEMINI_ERROR` · `PARSE_ERROR` · `FILE_ERROR` · `VALIDATION_ERROR`
